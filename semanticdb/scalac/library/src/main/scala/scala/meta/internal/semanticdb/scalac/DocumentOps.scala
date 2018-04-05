@@ -2,6 +2,7 @@ package scala.meta.internal.semanticdb.scalac
 
 import org.langmeta.internal.io.PathIO
 import org.langmeta.internal.semanticdb._
+
 import scala.collection.mutable
 import scala.reflect.internal._
 import scala.reflect.internal.util._
@@ -54,6 +55,7 @@ trait DocumentOps { self: DatabaseOps =>
       val todo = mutable.Set[m.Name]() // names to map to global trees
       val mstarts = mutable.Map[Int, m.Name]() // start offset -> tree
       val mends = mutable.Map[Int, m.Name]() // end offset -> tree
+      val lambdas = mutable.Map[Int, m.Term.Function]() // mapping for lambdas
       val margnames = mutable.Map[Int, List[m.Name]]() // start offset of enclosing apply -> its arg names
       val mwithins = mutable.Map[m.Tree, m.Name]() // name of enclosing member -> name of private/protected within
       val mwithinctors = mutable.Map[m.Tree, m.Name]() // name of enclosing class -> name of private/protected within for primary ctor
@@ -149,6 +151,11 @@ trait DocumentOps { self: DatabaseOps =>
                 mctorrefs(mtree.pos.start) = mtree.name
               case mtree: m.Name =>
                 indexName(mtree)
+              case mfunc: m.Term.Function =>
+                if (lambdas.contains(mtree.pos.start)){
+                  ??? // TODO
+                }
+                lambdas(mtree.pos.start) = mfunc
               case _ =>
               // do nothing
             }
@@ -404,6 +411,15 @@ trait DocumentOps { self: DatabaseOps =>
                         import1,
                         import2))
                 }
+              case function: g.Function =>
+                val mfunction = lambdas.get(function.pos.start).get
+                val initialName: m.Term.Name = m.Term.Name("anonfun$"+function.pos.start)
+                val lambdaName = initialName
+                  .privateCopy(origin = mfunction.origin, parent = mfunction)
+                  .asInstanceOf[m.Name]
+                val funcSymbol = function.symbol
+                if (funcSymbol.tpe == g.NoType) funcSymbol.updateInfo(function.tpe)
+                success(lambdaName, funcSymbol)
               case _ =>
             }
           }
