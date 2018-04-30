@@ -129,11 +129,13 @@ trait DenotationOps { self: DatabaseOps =>
         val synthetic = showSynthetic(gsym.info)
         val input = m.Input.Denotation(synthetic.text, gsym.toSemantic)
         val names = synthetic.names.toIterator.map {
-          case SyntheticRange(start, end, syntheticSymbol) =>
+          case SyntheticRange(start, end, syntheticSymbol, tpe) =>
             m.ResolvedName(
               m.Position.Range(input, start, end),
               syntheticSymbol,
-              isDefinition = false)
+              isDefinition = false,
+              tpe
+            )
         }.toArray
         Sorting.quickSort(names)(Ordering.by[m.ResolvedName, Int](_.position.start))
         synthetic.text -> names.toList

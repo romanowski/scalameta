@@ -3,8 +3,10 @@ package org.langmeta.semanticdb
 import scala.compat.Platform.EOL
 import org.langmeta.inputs._
 import org.langmeta.internal.inputs._
+import scala.meta.internal.{semanticdb3 => s}
 
-final case class ResolvedName(position: Position, symbol: Symbol, isDefinition: Boolean) {
+
+final case class ResolvedName(position: Position, symbol: Symbol, isDefinition: Boolean, actualTpe: Option[s.Type]) {
   def syntax: String = {
     val text = if (position.text.nonEmpty) position.text else ""
     val binder = if (isDefinition) "<=" else "=>"

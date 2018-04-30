@@ -161,12 +161,12 @@ package object semanticdb {
               ssignature.map { ssignature =>
                 val dinput = dInput.Denotation(dsignature, dsym)
                 ssignature.occurrences.toIterator.map {
-                  case s.SymbolOccurrence(Some(srange), ssym, sRole(disDefinition)) =>
+                  case s.SymbolOccurrence(Some(srange), ssym, sRole(disDefinition), actualTpe) =>
                     val dstartOffset = dinput.lineToOffset(srange.startLine) + srange.startCharacter
                     val dendOffset = dinput.lineToOffset(srange.endLine) + srange.endCharacter
                     val ddefnpos = dPosition.Range(dinput, dstartOffset, dendOffset)
                     val dsym = dSymbol(ssym)
-                    d.ResolvedName(ddefnpos, dsym, disDefinition)
+                    d.ResolvedName(ddefnpos, dsym, disDefinition, actualTpe)
                   case other =>
                     sys.error(s"bad protobuf: unsupported occurrence $other")
                 }.toList
@@ -194,13 +194,13 @@ package object semanticdb {
             val dnames = {
               stext.map { stext =>
                 stext.occurrences.toIterator.map {
-                  case s.SymbolOccurrence(Some(srange), ssym, sRole(disDefinition)) =>
+                  case s.SymbolOccurrence(Some(srange), ssym, sRole(disDefinition), actualTpe) =>
                     val dsyntheticinput = dInput.Synthetic(dtext, dpos.input, dpos.start, dpos.end)
                     val dstartOffset = dsyntheticinput.lineToOffset(srange.startLine) + srange.startCharacter
                     val dendOffset = dsyntheticinput.lineToOffset(srange.endLine) + srange.endCharacter
                     val dsyntheticpos = dPosition.Range(dsyntheticinput, dstartOffset, dendOffset)
                     val dsym = dSymbol(ssym)
-                    d.ResolvedName(dsyntheticpos, dsym, disDefinition)
+                    d.ResolvedName(dsyntheticpos, dsym, disDefinition, actualTpe)
                   case other =>
                     sys.error(s"bad protobuf: unsupported occurrence $other")
                 }.toList
@@ -217,9 +217,9 @@ package object semanticdb {
         }
       }
       val dnames = soccurrences.map {
-        case s.SymbolOccurrence(Some(sRange(dpos)), ssym, sRole(disDefinition)) =>
+        case s.SymbolOccurrence(Some(sRange(dpos)), ssym, sRole(disDefinition), tpe) =>
           val dsym = dSymbol(ssym)
-          d.ResolvedName(dpos, dsym, disDefinition)
+          d.ResolvedName(dpos, dsym, disDefinition, tpe)
         case other =>
           sys.error(s"bad protobuf: unsupported occurrence $other")
       }.toList
@@ -358,10 +358,10 @@ package object semanticdb {
                 if (ddenot.signature.nonEmpty) {
                   val stext = ddenot.signature
                   val soccurrences = ddenot.names.map {
-                    case d.ResolvedName(dpos: org.langmeta.Position.Range, dsym, disDefinition(srole)) =>
+                    case d.ResolvedName(dpos: org.langmeta.Position.Range, dsym, disDefinition(srole), actualTpe) =>
                       val srange = s.Range(dpos.startLine, dpos.startColumn, dpos.endLine, dpos.endColumn)
                       val ssym = sSymbol(dsym)
-                      s.SymbolOccurrence(Some(srange), ssym, srole)
+                      s.SymbolOccurrence(Some(srange), ssym, srole, actualTpe)
                     case other =>
                       sys.error(s"bad database: unsupported name $other")
                   }
@@ -385,10 +385,10 @@ package object semanticdb {
                 val stext = {
                   val stext = ssyntax
                   val soccurrences = dnames.toIterator.map {
-                    case d.ResolvedName(dpos: org.langmeta.Position.Range, dsym, disDefinition(srole)) =>
+                    case d.ResolvedName(dpos: org.langmeta.Position.Range, dsym, disDefinition(srole), actualTpe) =>
                       val srange = s.Range(dpos.startLine, dpos.startColumn, dpos.endLine, dpos.endColumn)
                       val ssym = sSymbol(dsym)
-                      s.SymbolOccurrence(Some(srange), ssym, srole)
+                      s.SymbolOccurrence(Some(srange), ssym, srole, actualTpe)
                     case other =>
                       sys.error(s"bad database: unsupported name $other")
                   }.toSeq
@@ -404,9 +404,9 @@ package object semanticdb {
             case other => sys.error(s"bad database: unsupported denotation $other")
           }
           val soccurrences = dnames.map {
-            case d.ResolvedName(dPosition(srange), dsym, disDefinition(srole)) =>
+            case d.ResolvedName(dPosition(srange), dsym, disDefinition(srole), actualTpe) =>
               val ssym = sSymbol(dsym)
-              s.SymbolOccurrence(Some(srange), ssym, srole)
+              s.SymbolOccurrence(Some(srange), ssym, srole, actualTpe)
             case other => sys.error(s"bad database: unsupported name $other")
           }
           val sdiagnostics = dmessages.map {

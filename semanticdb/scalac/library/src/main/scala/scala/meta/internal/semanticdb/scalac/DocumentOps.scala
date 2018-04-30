@@ -47,7 +47,7 @@ trait DocumentOps { self: DatabaseOps =>
   implicit class XtensionCompilationUnitDocument(unit: g.CompilationUnit) {
     def toDocument: m.Document = {
       val binders = mutable.Set[m.Position]()
-      val names = mutable.Map[m.Position, m.Symbol]()
+      val names = mutable.Map[m.Position, (m.Symbol, Option[s.Type])]()
       val denotations = mutable.Map[m.Symbol, m.Denotation]()
       val members = mutable.Map[m.Symbol, List[m.Signature]]()
       val inferred = mutable.Map[m.Position, Inferred]().withDefaultValue(Inferred())
@@ -200,7 +200,13 @@ trait DocumentOps { self: DatabaseOps =>
 
               todo -= mtree
 
-              names(mtree.pos) = symbol
+              val actualTpe = gtree.tpe match {
+                case null => None
+                case tpe =>
+                  tpe.widen.toSemantic._1
+              }
+
+              names(mtree.pos) = (symbol, actualTpe)
               if (mtree.isDefinition) {
                 val isToplevel = gsym.owner.hasPackageFlag
                 if (isToplevel) {
@@ -492,7 +498,7 @@ trait DocumentOps { self: DatabaseOps =>
                 val pos = qual.pos.withStart(qual.pos.end).toMeta
                 val symbol = select.symbol.toSemantic
                 val name = nme.decoded
-                val names = List(SyntheticRange(0, name.length, symbol))
+                val names = List(SyntheticRange(0, name.length, symbol, materizedTpe(qual)))
                 val syntax = S(".") + S(nme.decoded, names)
                 success(pos, _.copy(select = Some(syntax)))
               case _ =>
@@ -552,8 +558,8 @@ trait DocumentOps { self: DatabaseOps =>
       val input = unit.source.toInput
 
       val flattenedNames = names.flatMap {
-        case (pos, sym) =>
-          flatten(sym).map(m.ResolvedName(pos, _, binders(pos)))
+        case (pos, (sym, tpe)) =>
+          flatten(sym).map(m.ResolvedName(pos, _, binders(pos), tpe)) // TODO
       }.toList
       val messages = unit.reportedMessages(mstarts)
       val symbols = denotations.map {
@@ -632,5 +638,12 @@ trait DocumentOps { self: DatabaseOps =>
       case m.Symbol.Multi(msyms) => msyms.flatMap(flatten)
       case mother => List(mother)
     }
+  }
+
+  def materizedTpe(in: g.Tree) = in.tpe match {
+    case null =>
+      None
+    case tpe =>
+      tpe.widen.toSemantic._1
   }
 }

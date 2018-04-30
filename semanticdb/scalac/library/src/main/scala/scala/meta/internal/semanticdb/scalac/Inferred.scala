@@ -1,10 +1,11 @@
 package scala.meta
 package internal.semanticdb.scalac
+import `scala`.meta.internal.{ semanticdb3 => s }
 
-case class SyntheticRange(start: Int, end: Int, symbol: Symbol) {
-  def addOffset(offset: Int) = SyntheticRange(start + offset, end + offset, symbol)
+case class SyntheticRange(start: Int, end: Int, symbol: Symbol, tpe: Option[s.Type]) {
+  def addOffset(offset: Int) = SyntheticRange(start + offset, end + offset, symbol, tpe)
   def toMeta(input: Input): ResolvedName =
-    ResolvedName(Position.Range(input, start, end), symbol, isDefinition = false)
+    ResolvedName(Position.Range(input, start, end), symbol, isDefinition = false, None)
 }
 case class AttributedSynthetic(text: String, names: List[SyntheticRange]) {
   def +(other: String) = AttributedSynthetic(text + other, names)
@@ -14,7 +15,7 @@ case class AttributedSynthetic(text: String, names: List[SyntheticRange]) {
 
 object AttributedSynthetic {
   val empty = AttributedSynthetic("", Nil)
-  val star = AttributedSynthetic("*", List(SyntheticRange(0, 1, Symbol("_star_."))))
+  val star = AttributedSynthetic("*", List(SyntheticRange(0, 1, Symbol("_star_."), None)))
   def apply(text: String): AttributedSynthetic = AttributedSynthetic(text, Nil)
   def mkString(synthetics: List[AttributedSynthetic], sep: String): AttributedSynthetic =
     synthetics match {
