@@ -112,7 +112,7 @@ lazy val semanticdb3 = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   )
 lazy val semanticdb3JVM = semanticdb3.jvm
 lazy val semanticdb3JS = semanticdb3.js
-lazy val semanticdb3Native = semanticdb3.native
+//lazy val semanticdb3Native = semanticdb3.native
 
 lazy val semanticdbScalacCore = project
   .in(file("semanticdb/scalac/library"))
@@ -195,7 +195,7 @@ lazy val metap = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .dependsOn(semanticdb3)
 lazy val metapJVM = metap.jvm
 lazy val metapJS = metap.js
-lazy val metapNative = metap.native
+//lazy val metapNative = metap.native
 
 /** ======================== SCALAMETA ======================== **/
 lazy val common = crossProject(JSPlatform, JVMPlatform)

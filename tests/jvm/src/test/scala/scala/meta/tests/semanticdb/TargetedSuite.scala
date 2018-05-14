@@ -485,6 +485,7 @@ class TargetedSuite extends SemanticdbSuite() {
     """|[1:8..1:9): k <= k.
        |[2:7..2:10): tup <= k.tup.
        |[3:6..3:9): foo <= k.tup.foo().
+       |[3:12..3:36): (a: (Int, Boolean)) => 1 => k.tup.foo.$anonfun.
        |[3:13..3:14): a <= k.tup.foo.$anonfun.(a)
        |[3:17..3:20): Int => scala.Int#
        |[3:22..3:29): Boolean => scala.Boolean#
