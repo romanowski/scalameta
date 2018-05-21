@@ -8,14 +8,17 @@ import scala.reflect.internal.{Flags => gf}
 
 trait TypeOps { self: SemanticdbOps =>
   implicit class XtensionGTypeSType(gtpe: g.Type) {
-    def toSemantic: (Option[s.Type], List[g.Symbol]) = {
+	  def toSemantic: (Option[s.Type], List[g.Symbol]) = toSemantic(false)
+
+	  def toSemantic(widen: Boolean): (Option[s.Type], List[g.Symbol]) = {
       val buf = List.newBuilder[g.Symbol]
       def todo(gsym: g.Symbol): String = {
-        buf += gsym
-        gsym.toSemantic.syntax
+	      val widenGsym = if (widen) gsym.tpe.typeSymbol else gsym
+        buf += widenGsym
+	      widenGsym.toSemantic.syntax
       }
       def loop(gtpe: g.Type): Option[s.Type] = {
-        gtpe match {
+	      gtpe match {
           case ByNameType(gtpe) =>
             val stag = t.BY_NAME_TYPE
             val stpe = loop(gtpe)
