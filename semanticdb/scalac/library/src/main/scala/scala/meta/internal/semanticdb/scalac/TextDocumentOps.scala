@@ -1,6 +1,7 @@
 package scala.meta.internal.semanticdb.scalac
 
 import `scala`.meta.internal.semanticdb3.SymbolOccurrence
+import `scala`.meta.internal.semanticdb3.Type
 
 import scala.collection.mutable
 import scala.meta.internal.inputs._
@@ -179,7 +180,13 @@ trait TextDocumentOps { self: SemanticdbOps =>
 
           private var currentTrees = List[g.Tree]()
 
-          private def materializeTpe(in: g.Tree, currentStack: List[g.Tree] = currentTrees) = {
+          private def materializeTpe(tpe: g.Type) = {
+            val (sTpe, todo) = tpe.widen.toSemantic(true)
+            saveTypeSymbols(todo)
+            sTpe
+          }
+
+          private def materializeTpe(in: g.Tree, currentStack: List[g.Tree] = currentTrees): Option[Type] = {
             def computeTpe(fromTree: g.Tree) = fromTree.tpe match {
               case null =>
                 None
@@ -188,9 +195,7 @@ trait TextDocumentOps { self: SemanticdbOps =>
               case _ if currentStack.isEmpty =>
                 None
               case tpe =>
-                val (sTpe, todo) = tpe.widen.toSemantic(true)
-	              saveTypeSymbols(todo)
-		            sTpe
+                materializeTpe(tpe)
             }
 
             currentStack.tail match { // Current tree is head...
@@ -482,9 +487,18 @@ trait TextDocumentOps { self: SemanticdbOps =>
                 val names = List(SyntheticRange(0, name.length, symbol, materializeTpe(select)))
                 val syntax = S(".") + S(nme.decoded, names)
                 success(pos, _.copy(select = Some(syntax)))
+              case setter @ g.Apply(fun, List(value)) if setter.symbol.isSetter && setter.pos == value.pos =>
+                val variableName = {
+                  import g._
+                  setter.symbol.unexpandedName.getterName
+                }
+                val varSymbol = setter.symbol.owner.info.decl(variableName)
+                val getterTpe = materializeTpe(varSymbol.tpe).flatMap(_.methodType).flatMap(_.returnType)
+                occurrences(fun.pos.toMeta) = varSymbol.toSemantic -> getterTpe
+                val syntax = showSynthetic(fun, materializeTpe(setter)) + "(" + S.star + ")"
+                success(setter.pos.toMeta, _.copy(conversion = Some(syntax)))
               case other =>
-                println(other)
-              // do nothing
+                // do nothing
             }
           }
 
@@ -540,7 +554,7 @@ trait TextDocumentOps { self: SemanticdbOps =>
               super.traverse(gtree)
             } finally currentTrees = currentTrees.tail
         }
-        traverser.traverse(unit.body)
+            traverser.traverse(unit.body)
       }
 
       val input = unit.source.toInput
