@@ -16,7 +16,8 @@ case class SemanticdbConfig(
     md5: BinaryMode,
     symbols: SymbolMode,
     diagnostics: BinaryMode,
-    synthetics: BinaryMode
+    synthetics: BinaryMode,
+    occurences: OccurrenceMode
 ) {
   def syntax: String = {
     val p = SemanticdbPlugin.name
@@ -30,7 +31,8 @@ case class SemanticdbConfig(
       "text" -> text.name,
       "symbols" -> symbols.name,
       "diagnostics" -> diagnostics.name,
-      "synthetics" -> synthetics.name
+      "synthetics" -> synthetics.name,
+      "occurences" -> occurences.name
     ).map { case (k, v) => s"-P:$p:$k:$v" }.mkString(" ")
   }
 
@@ -46,7 +48,8 @@ object SemanticdbConfig {
     md5 = BinaryMode.On,
     symbols = SymbolMode.All,
     diagnostics = BinaryMode.On,
-    synthetics = BinaryMode.Off
+    synthetics = BinaryMode.Off,
+    OccurrenceMode.JustSymbol
   )
 
   private val SetFailures = "failures:(.*)".r
@@ -60,6 +63,7 @@ object SemanticdbConfig {
   private val SetSymbols = "symbols:(.*)".r
   private val SetDiagnostics = "diagnostics:(.*)".r
   private val SetSynthetics = "synthetics:(.*)".r
+  private val SetOccurences = "occurrences:(.*)".r
   // ============ COMPATIBILITY WITH 3.X STARTS ============
   private val SetMode = "mode:(.*)".r
   private val SetOwners = "owners:(.*)".r
@@ -145,6 +149,8 @@ object SemanticdbConfig {
       case option @ "synthetics:none" =>
         deprecated(option, "synthetics:off")
         config = config.copy(synthetics = BinaryMode.Off)
+      case SetOccurences(OccurrenceMode(mode)) =>
+        config = config.copy(occurences = mode)
       case option @ SetOwners(_) =>
         unsupported(option)
       // ============ COMPATIBILITY WITH 3.X ENDS ============
@@ -196,6 +202,20 @@ object SymbolMode {
   case object All extends SymbolMode
   case object LocalOnly extends SymbolMode
   case object None extends SymbolMode
+}
+
+sealed abstract class OccurrenceMode {
+  import OccurrenceMode._
+  def storeType(): Boolean = this == SymbolAndType
+  def name: String = toString.toLowerCase
+}
+
+object OccurrenceMode {
+  def name: String = toString.toLowerCase
+  def unapply(arg: String): Option[OccurrenceMode] = all.find(_.toString.equalsIgnoreCase(arg))
+  def all = Seq(SymbolAndType, JustSymbol)
+  case object SymbolAndType extends OccurrenceMode
+  case object JustSymbol extends OccurrenceMode
 }
 
 case class FileFilter(include: Regex, exclude: Regex) {

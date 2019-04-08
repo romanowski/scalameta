@@ -324,6 +324,7 @@ message SymbolOccurrence {
   Range range = 1;
   string symbol = 2;
   Role role = 3;
+  Type tpe = 4;
 }
 
 message Diagnostic {

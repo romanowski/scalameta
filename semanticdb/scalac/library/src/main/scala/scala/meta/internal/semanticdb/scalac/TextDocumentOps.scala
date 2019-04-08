@@ -11,6 +11,7 @@ import scala.reflect.internal.{Flags => gf}
 import scala.reflect.io.{PlainFile => GPlainFile}
 import scala.{meta => m}
 import scala.meta.internal.semanticdb.Scala._
+import scala.meta.internal.semanticdb.Type
 
 trait TextDocumentOps { self: SemanticdbOps =>
   def validateCompilerState(): Unit = {
@@ -49,6 +50,7 @@ trait TextDocumentOps { self: SemanticdbOps =>
       pointsCache.clear()
       val binders = mutable.Set[m.Position]()
       val occurrences = mutable.Map[m.Position, String]()
+      val materializedTypes = mutable.Map[m.Position, s.Type]()
       val symbols = mutable.Map[String, s.SymbolInformation]()
       val synthetics = mutable.ListBuffer[s.Synthetic]()
       val isVisited = mutable.Set.empty[g.Tree] // macro expandees can have cycles, keep tracks of visited nodes.
@@ -185,6 +187,14 @@ trait TextDocumentOps { self: SemanticdbOps =>
 
       locally {
         object traverser extends g.Traverser {
+          private var currentTrees = List[g.Tree]()
+
+          private def materializeTpe(tpe: g.Type): Option[Type] =
+            if(config.occurences.storeType()) Some(tpe.widen.toSemanticTpe) else None
+
+          private def materializeTpe(in: g.Tree): Option[Type] =
+            Some(in.tpe).flatMap(materializeTpe)
+
           private def trySymbolDefinition(gsym: g.Symbol): Unit = {
             if (config.symbols.isNone) return
             if (gsym == null) return
@@ -252,6 +262,8 @@ trait TextDocumentOps { self: SemanticdbOps =>
               val selectionFromStructuralType = gsym.owner.isRefinementClass
               if (!selectionFromStructuralType) occurrences(mtree.pos) = symbol
             }
+            materializeTpe(gsym.tpe).foreach(materializedTypes(mtree.pos) = _)
+
 
             def tryWithin(map: mutable.Map[m.Tree, m.Name], gsym0: g.Symbol): Unit = {
               if (map.contains(mtree)) {
@@ -639,6 +651,8 @@ trait TextDocumentOps { self: SemanticdbOps =>
                   // of the single binder. For example, map `val Foo(x) = ..` to the position of `x`.
                   val mpos = msinglevalpats(gtree.pos.start)
                   occurrences(mpos) = gtree.symbol.toSemantic
+                  materializeTpe(gtree).foreach(materializedTypes(mpos) = _)
+
                   binders += mpos
                 }
               case _: g.Apply | _: g.TypeApply =>
@@ -664,13 +678,13 @@ trait TextDocumentOps { self: SemanticdbOps =>
 
       val finalOccurrences = {
         for {
-          (pos, sym) <- Iterator(occurrences, mpatoccurrences).flatten
+          (pos, sym) <- Iterator(occurrences.iterator, mpatoccurrences).flatten
           flatSym <- sym.asMulti
         } yield {
           val role =
             if (binders.contains(pos)) s.SymbolOccurrence.Role.DEFINITION
             else s.SymbolOccurrence.Role.REFERENCE
-          s.SymbolOccurrence(Some(pos.toRange), flatSym, role)
+          s.SymbolOccurrence(Some(pos.toRange), flatSym, role, materializedTypes.getOrElse(pos, Type.Empty))
         }
       }.toList
 
