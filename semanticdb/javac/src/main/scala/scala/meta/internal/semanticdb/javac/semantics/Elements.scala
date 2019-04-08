@@ -39,7 +39,10 @@ trait Elements {
         if (qualName == "") Symbols.EmptyPackage
         else qualName.replace('.', '/') + "/"
       case elem: TypeElement =>
-        Symbols.Global(owner, d.Type(symbolName))
+//        if(elem.getSimpleName.toString == "Array")
+//          "java.lang.Array" // TODO
+//        else
+          Symbols.Global(owner, d.Type(symbolName))
       case elem: ExecutableElement =>
         val owner = elem.getEnclosingElement
         val disambig = {
@@ -59,6 +62,11 @@ trait Elements {
         Symbols.Global(owner, d.Term(symbolName))
       case elem: TypeParameterElement =>
         Symbols.Global(owner, d.TypeParameter(symbolName))
+//      case rootPackage  if rootPackage.getSimpleName.toString == "" =>
+//        Symbols.RootPackage
+//      case other =>
+//        println(other)
+//        ??? // TODO
     }
 
     def displayName: String = symbolName
